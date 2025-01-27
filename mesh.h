@@ -35,6 +35,23 @@ public:
     std::vector<Vertex> vertices;       // List of vertices in the mesh
     std::vector<triIndices> triangles;  // List of triangles in the mesh
 
+	//move constructor 
+	Mesh(Mesh&& other) noexcept
+		: col(other.col), kd(other.kd), ka(other.ka), world(other.world),
+		vertices(std::move(other.vertices)), triangles(std::move(other.triangles)) { }
+    //move assignment operator
+    Mesh& operator=(Mesh&& other) noexcept {
+		if (this != &other) {
+			col = other.col;
+			kd = other.kd;
+			ka = other.ka;
+			world = other.world;
+			vertices = std::move(other.vertices);
+			triangles = std::move(other.triangles);
+		}
+		return *this;
+    }
+
     // Set the uniform color and reflection coefficients for the mesh
     // Input Variables:
     // - _c: Uniform color

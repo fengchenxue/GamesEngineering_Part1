@@ -169,6 +169,13 @@ public:
         return m;
     }
 
+    void setTranslationZ(float z) {
+        a[11] = z;
+    }
+	float getTranslationZ() {
+		return a[11];
+	}
+
 private:
     // Set all elements of the matrix to 0
     void zero() {

@@ -41,6 +41,9 @@ class triangle {
     float area;        // Area of the triangle
     colour col[3];     // Colors for each vertex of the triangle
 
+	auto EdgeFunction(float xa, float ya, float xb, float yb, float x, float y) {
+		return (x - xa) * (yb - ya) - (y - ya) * (xb - xa);
+	}
 public:
     // Constructor initializes the triangle with three vertices
     // Input Variables:
@@ -135,7 +138,123 @@ public:
             }
         }
     }
+	//mutlithreaded draw function for objects
+    void draw1(Renderer& renderer, Light& L, float ka, float kd) {
+       
+        // Skip very small triangles
+        if (area < 1.f) return;
+        
+        vec2D minV, maxV;
+        // Get the screen-space bounds of the triangle
+        getBoundsWindow(renderer.canvas, minV, maxV);
 
+		/*float fAB_start = EdgeFunction(v[0].p[0], v[0].p[1], v[1].p[0], v[1].p[1], floor(minV.x), floor(minV.y));
+		float fBC_start = EdgeFunction(v[1].p[0], v[1].p[1], v[2].p[0], v[2].p[1], floor(minV.x), floor(minV.y));
+		float fCA_start = EdgeFunction(v[2].p[0], v[2].p[1], v[0].p[0], v[0].p[1], floor(minV.x), floor(minV.y));
+
+		float stepX_AB = v[1].p[1]-v[0].p[1];
+		float stepY_AB = v[0].p[0]-v[1].p[0];
+		float stepX_BC = v[2].p[1]-v[1].p[1];
+		float stepY_BC = v[1].p[0]-v[2].p[0];
+		float stepX_CA = v[0].p[1]-v[2].p[1];
+		float stepY_CA = v[2].p[0]-v[0].p[0];*/
+
+        float gammaStart = -EdgeFunction(v[2].p[0], v[2].p[1], v[0].p[0], v[0].p[1], floor(minV.x), floor(minV.y)) / area;
+		float betaStart = -EdgeFunction(v[1].p[0], v[1].p[1], v[2].p[0], v[2].p[1], floor(minV.x), floor(minV.y)) / area;
+		float alphaStart = 1 - gammaStart - betaStart;
+
+        float stepX_Alpha = -(v[0].p[1] - v[2].p[1]) / area;
+		float stepX_Beta = -(v[2].p[1] - v[1].p[1]) / area;
+
+		float stepY_Alpha = -(v[2].p[0] - v[0].p[0]) / area;
+		float stepY_Beta = -(v[1].p[0] - v[2].p[0]) / area;
+
+        for (int y = (int)(minV.y); y < (int)ceil(maxV.y); y++) {
+			/*float fAB = fAB_start;
+			float fBC = fBC_start;
+			float fCA = fCA_start;*/
+			//float al = alphaStart;
+			float be = betaStart;
+			float ga = gammaStart;
+            for (int x = (int)(minV.x); x < (int)ceil(maxV.x); x++) {
+
+				float al = 1 - ga  - be;
+				float alpha = al;
+				float beta = be;
+				float gamma = ga;
+				//float alpha, beta, gamma;
+               // int r = getCoordinates(vec2D((float)x, (float)y), alpha, beta, gamma);
+				// Check if the pixel lies inside the triangle
+				//if (fAB <= 0 && fBC <= 0 && fCA <= 0) {
+               /* float al, be, ga;
+                int r = getCoordinates(vec2D((float)x, (float)y), al,be,ga);*/
+				if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+                    //int r=getCoordinates(vec2D((float)x, (float)y), alpha, beta, gamma);
+					// Interpolate color, depth, and normals
+					colour c = interpolate(beta, gamma, alpha, v[0].rgb, v[1].rgb, v[2].rgb);
+					c.clampColour();
+					float depth = interpolate(beta, gamma, alpha, v[0].p[2], v[1].p[2], v[2].p[2]);
+					vec4 normal = interpolate(beta, gamma, alpha, v[0].normal, v[1].normal, v[2].normal);
+					normal.normalise();
+
+					// Perform Z-buffer test and apply shading
+					if (renderer.zbuffer(x, y) > depth && depth > 0.01f) {
+						// typical shader begin
+						L.omega_i.normalise();
+						float dot = max(vec4::dot(L.omega_i, normal), 0.0f);
+						colour a = (c * kd) * (L.L * dot + (L.ambient * kd));
+						// typical shader end
+						unsigned char r, g, b;
+						a.toRGB(r, g, b);
+						renderer.canvas.draw(x, y, r, g, b);
+						renderer.zbuffer(x, y) = depth;
+					}
+				}
+				ga += stepX_Alpha;
+				be += stepX_Beta;
+				/*fAB += stepX_AB;
+				fBC += stepX_BC;
+				fCA += stepX_CA;*/
+            }
+			gammaStart += stepY_Alpha;
+			betaStart += stepY_Beta;
+			/*fAB_start += stepY_AB;
+			fBC_start += stepY_BC;
+			fCA_start += stepY_CA;*/
+
+
+        }
+
+        // Iterate over the bounding box and check each pixel
+        //for (int y = (int)(minV.y); y < (int)ceil(maxV.y); y++) {
+        //    for (int x = (int)(minV.x); x < (int)ceil(maxV.x); x++) {
+        //        float alpha, beta, gamma;
+
+        //        // Check if the pixel lies inside the triangle
+        //        if (getCoordinates(vec2D((float)x, (float)y), alpha, beta, gamma)) {
+        //            // Interpolate color, depth, and normals
+        //            colour c = interpolate(beta, gamma, alpha, v[0].rgb, v[1].rgb, v[2].rgb);
+        //            c.clampColour();
+        //            float depth = interpolate(beta, gamma, alpha, v[0].p[2], v[1].p[2], v[2].p[2]);
+        //            vec4 normal = interpolate(beta, gamma, alpha, v[0].normal, v[1].normal, v[2].normal);
+        //            normal.normalise();
+
+        //            // Perform Z-buffer test and apply shading
+        //            if (renderer.zbuffer(x, y) > depth && depth > 0.01f) {
+        //                // typical shader begin
+        //                L.omega_i.normalise();
+        //                float dot = max(vec4::dot(L.omega_i, normal), 0.0f);
+        //                colour a = (c * kd) * (L.L * dot + (L.ambient * kd));
+        //                // typical shader end
+        //                unsigned char r, g, b;
+        //                a.toRGB(r, g, b);
+        //                renderer.canvas.draw(x, y, r, g, b);
+        //                renderer.zbuffer(x, y) = depth;
+        //            }
+        //        }
+        //    }
+        //}
+    }
     // Compute the 2D bounds of the triangle
     // Output Variables:
     // - minV, maxV: Minimum and maximum bounds in 2D space

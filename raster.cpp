@@ -58,8 +58,8 @@ void render(Renderer& renderer, Mesh* mesh, matrix& camera, Light& L) {
     }
 }
 
-// the only difference between render and renderMesh is the type of mesh( Mesh vs Mesh* )
-void renderMesh(Renderer& renderer, Mesh mesh, matrix& camera, Light& L) {
+// using Mesh& instead of Mesh*
+void render1(Renderer& renderer, Mesh &mesh, matrix& camera, Light& L) {
     // Combine perspective, camera, and world transformations for the mesh
     matrix p = renderer.perspective * camera * mesh.world;
 
@@ -92,6 +92,82 @@ void renderMesh(Renderer& renderer, Mesh mesh, matrix& camera, Light& L) {
         // Create a triangle object and render it
         triangle tri(t[0], t[1], t[2]);
         tri.draw(renderer, L, mesh.ka, mesh.kd);
+    }
+}
+
+//Using Mesh& instead of Mesh*
+//Memorization: Pre-calculating the transformation of vertices
+void render2(Renderer& renderer, Mesh& mesh, matrix& camera, Light& L) {
+    // Combine perspective, camera, and world transformations for the mesh
+    matrix p = renderer.perspective * camera * mesh.world;
+    
+    // Transform each vertex of the mesh
+	int size = mesh.vertices.size();
+	std::vector<Vertex> transformedVertices(size);
+
+    for (int i = 0; i < size; i++) {
+		transformedVertices[i].p = p * mesh.vertices[i].p; // Apply transformations
+		transformedVertices[i].p.divideW(); // Perspective division to normalize coordinates
+
+		// Transform normals into world space for accurate lighting
+		// no need for perspective correction as no shearing or non-uniform scaling
+		transformedVertices[i].normal = mesh.world * mesh.vertices[i].normal;
+		transformedVertices[i].normal.normalise();
+
+		// Map normalized device coordinates to screen space
+		transformedVertices[i].p[0] = (transformedVertices[i].p[0] + 1.f) * 0.5f * static_cast<float>(renderer.canvas.getWidth());
+		transformedVertices[i].p[1] = (transformedVertices[i].p[1] + 1.f) * 0.5f * static_cast<float>(renderer.canvas.getHeight());
+		transformedVertices[i].p[1] = renderer.canvas.getHeight() - transformedVertices[i].p[1]; // Invert y-axis
+
+		// Copy vertex colours
+		transformedVertices[i].rgb = mesh.vertices[i].rgb;
+    }
+
+    // Iterate through all triangles in the mesh
+    for (triIndices& ind : mesh.triangles) {
+        // Clip triangles with Z-values outside [-1, 1]
+		if (fabs(transformedVertices[ind.v[0]].p[2]) > 1.0f || fabs(transformedVertices[ind.v[1]].p[2]) > 1.0f || fabs(transformedVertices[ind.v[2]].p[2]) > 1.0f) continue;
+        
+        // Create a triangle object and render it
+		triangle tri(transformedVertices[ind.v[0]], transformedVertices[ind.v[1]], transformedVertices[ind.v[2]]);
+        tri.draw(renderer, L, mesh.ka, mesh.kd);
+    }
+}
+
+//using draw1 for optimizating algorithm for rasterization
+void render3(Renderer& renderer, Mesh& mesh, matrix& camera, Light& L) {
+    // Combine perspective, camera, and world transformations for the mesh
+    matrix p = renderer.perspective * camera * mesh.world;
+
+    // Iterate through all triangles in the mesh
+    for (triIndices& ind : mesh.triangles) {
+        Vertex t[3]; // Temporary array to store transformed triangle vertices
+
+        // Transform each vertex of the triangle
+        for (unsigned int i = 0; i < 3; i++) {
+            t[i].p = p * mesh.vertices[ind.v[i]].p; // Apply transformations
+            t[i].p.divideW(); // Perspective division to normalize coordinates
+
+            // Transform normals into world space for accurate lighting
+            // no need for perspective correction as no shearing or non-uniform scaling
+            t[i].normal = mesh.world * mesh.vertices[ind.v[i]].normal;
+            t[i].normal.normalise();
+
+            // Map normalized device coordinates to screen space
+            t[i].p[0] = (t[i].p[0] + 1.f) * 0.5f * static_cast<float>(renderer.canvas.getWidth());
+            t[i].p[1] = (t[i].p[1] + 1.f) * 0.5f * static_cast<float>(renderer.canvas.getHeight());
+            t[i].p[1] = renderer.canvas.getHeight() - t[i].p[1]; // Invert y-axis
+
+            // Copy vertex colours
+            t[i].rgb = mesh.vertices[ind.v[i]].rgb;
+        }
+
+        // Clip triangles with Z-values outside [-1, 1]
+        if (fabs(t[0].p[2]) > 1.0f || fabs(t[1].p[2]) > 1.0f || fabs(t[2].p[2]) > 1.0f) continue;
+
+        // Create a triangle object and render it
+        triangle tri(t[0], t[1], t[2]);
+        tri.draw1(renderer, L, mesh.ka, mesh.kd);
     }
 }
 
@@ -222,7 +298,8 @@ void scene1() {
         delete m;
 }
 
-//This version of scene1 uses Mesh instead of Mesh*
+//Using Mesh instead of Mesh*
+//Using render1 (Passing Mesh by reference)
 void scene1_1() {
     Renderer renderer;
     matrix camera;
@@ -231,11 +308,122 @@ void scene1_1() {
 
     std::vector<Mesh> scene(40);
 
-    for (unsigned int i = 0; i < 40; i = i + 2) {
-        scene[i] = Mesh::makeCube(1.f);
-        scene[i].world = matrix::makeTranslation(-2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
-        scene[i + 1] = Mesh::makeCube(1.f);
-        scene[i + 1].world = matrix::makeTranslation(2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
+    for (unsigned int i = 0; i < 20; i++) {
+        scene[i*2] = Mesh::makeCube(1.f);
+        scene[i*2].world = matrix::makeTranslation(-2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
+        scene[i*2 + 1] = Mesh::makeCube(1.f);
+        scene[i*2 + 1].world = matrix::makeTranslation(2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
+    }
+
+    float zoffset = 8.0f; // Initial camera Z-offset
+    float step = -0.1f;  // Step size for camera movement
+   
+    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end;
+    int cycle = 0;
+
+    // Main rendering loop
+    while (running) {
+        renderer.canvas.checkInput();
+        renderer.clear();
+
+        camera = matrix::makeTranslation(0, 0, -zoffset); // Update camera position
+
+        // Rotate the first two cubes in the scene
+        scene[0].world = scene[0].world * matrix::makeRotateXYZ(0.1f, 0.1f, 0.0f);
+        scene[1].world = scene[1].world * matrix::makeRotateXYZ(0.0f, 0.1f, 0.2f);
+
+        if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
+
+        zoffset += step;
+        if (zoffset < -60.f || zoffset > 8.f) {
+            step *= -1.f;
+            if (++cycle % 2 == 0) {
+                end = std::chrono::high_resolution_clock::now();
+                std::cout << cycle / 2 << " :" << std::chrono::duration<double, std::milli>(end - start).count() << "ms\n";
+                start = std::chrono::high_resolution_clock::now();
+            }
+        }
+
+        for (auto& m : scene)
+            render1(renderer, m, camera, L);
+        renderer.present();
+    }
+    
+}
+
+//Using Mesh instead of Mesh*
+//Using render1 (Passing Mesh by reference)
+//Using Memorization of camera matrix
+void scene1_2() {
+    Renderer renderer;
+    matrix camera;
+    Light L{ vec4(0.f, 1.f, 1.f, 0.f), colour(1.0f, 1.0f, 1.0f), colour(0.1f, 0.1f, 0.1f) };
+    bool running = true;
+
+    std::vector<Mesh> scene(40);
+
+    for (unsigned int i = 0; i < 20; i++) {
+        scene[i * 2] = Mesh::makeCube(1.f);
+        scene[i * 2].world = matrix::makeTranslation(-2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
+        scene[i * 2 + 1] = Mesh::makeCube(1.f);
+        scene[i * 2 + 1].world = matrix::makeTranslation(2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
+    }
+	//pre-calculate the camera matrix
+    std::vector<float> cameraMatrix;
+    for (float zoffset = 8.0f, step = -0.1f; zoffset <= 8.f; zoffset += step) {
+        if (zoffset < -60.f) step *= -1.f;
+        cameraMatrix.emplace_back(-zoffset);
+    }
+	//used to index the camera matrix in the loop
+	int cameraIndex = 0;
+	int cameraSize = cameraMatrix.size();
+
+    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end;
+    int cycle = 0;
+
+    // Main rendering loop
+    while (running) {
+        renderer.canvas.checkInput();
+        renderer.clear();
+
+        // Rotate the first two cubes in the scene
+        scene[0].world = scene[0].world * matrix::makeRotateXYZ(0.1f, 0.1f, 0.0f);
+        scene[1].world = scene[1].world * matrix::makeRotateXYZ(0.0f, 0.1f, 0.2f);
+
+        if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
+
+		camera.setTranslationZ(cameraMatrix[cameraIndex]);// Update camera position
+
+        for (auto& m : scene)
+            render1(renderer, m, camera, L);
+        renderer.present();
+
+        if (++cameraIndex == cameraSize) {
+            end = std::chrono::high_resolution_clock::now();
+            std::cout << ++cycle << " :" << std::chrono::duration<double, std::milli>(end - start).count() << "ms\n";
+            start = std::chrono::high_resolution_clock::now();
+            cameraIndex = 0;
+        }
+    }
+}
+
+//Using Mesh instead of Mesh*
+//Using render2 (Passing Mesh by reference)+(Memorization of transformation)
+void scene1_3() {
+    Renderer renderer;
+    matrix camera;
+    Light L{ vec4(0.f, 1.f, 1.f, 0.f), colour(1.0f, 1.0f, 1.0f), colour(0.1f, 0.1f, 0.1f) };
+    bool running = true;
+
+    std::vector<Mesh> scene(40);
+
+    for (unsigned int i = 0; i < 20; i++) {
+        scene[i * 2] = Mesh::makeCube(1.f);
+        scene[i * 2].world = matrix::makeTranslation(-2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
+        scene[i * 2 + 1] = Mesh::makeCube(1.f);
+        scene[i * 2 + 1].world = matrix::makeTranslation(2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
     }
 
     float zoffset = 8.0f; // Initial camera Z-offset
@@ -269,17 +457,63 @@ void scene1_1() {
         }
 
         for (auto& m : scene)
-            renderMesh(renderer, m, camera, L);
+            render2(renderer, m, camera, L);
         renderer.present();
     }
-    
-}
-
-
-void scene1_2() {
 
 }
+//Using Mesh instead of Mesh*
+//Using render3 (Passing Mesh by reference)+(Optimizing algorithm for rasterization)
+void scene1_4() {
+    Renderer renderer;
+    matrix camera;
+    Light L{ vec4(0.f, 1.f, 1.f, 0.f), colour(1.0f, 1.0f, 1.0f), colour(0.1f, 0.1f, 0.1f) };
+    bool running = true;
 
+    std::vector<Mesh> scene(40);
+
+    for (unsigned int i = 0; i < 20; i++) {
+        scene[i * 2] = Mesh::makeCube(1.f);
+        scene[i * 2].world = matrix::makeTranslation(-2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
+        scene[i * 2 + 1] = Mesh::makeCube(1.f);
+        scene[i * 2 + 1].world = matrix::makeTranslation(2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
+    }
+
+    float zoffset = 8.0f; // Initial camera Z-offset
+    float step = -0.1f;  // Step size for camera movement
+
+    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end;
+    int cycle = 0;
+
+    // Main rendering loop
+    while (running) {
+        renderer.canvas.checkInput();
+        renderer.clear();
+
+        camera = matrix::makeTranslation(0, 0, -zoffset); // Update camera position
+
+        // Rotate the first two cubes in the scene
+        scene[0].world = scene[0].world * matrix::makeRotateXYZ(0.1f, 0.1f, 0.0f);
+        scene[1].world = scene[1].world * matrix::makeRotateXYZ(0.0f, 0.1f, 0.2f);
+
+        if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
+
+        zoffset += step;
+        if (zoffset < -60.f || zoffset > 8.f) {
+            step *= -1.f;
+            if (++cycle % 2 == 0) {
+                end = std::chrono::high_resolution_clock::now();
+                std::cout << cycle / 2 << " :" << std::chrono::duration<double, std::milli>(end - start).count() << "ms\n";
+                start = std::chrono::high_resolution_clock::now();
+            }
+        }
+
+        for (auto& m : scene)
+            render3(renderer, m, camera, L);
+        renderer.present();
+    }
+}
 // Scene with a grid of cubes and a moving sphere
 // No input variables
 void scene2() {
@@ -357,7 +591,8 @@ int main() {
     //scene1();
     //scene2();
     //sceneTest(); 
-	scene1_1();
+
+    scene1_4();
 
     return 0;
 }
