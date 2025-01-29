@@ -108,4 +108,10 @@ public:
         y /= length;
         z /= length;
     }
+    void normalise1() {
+        float invLength = 1/std::sqrt(x * x + y * y + z * z);
+        x *= invLength;
+        y *= invLength;
+        z *= invLength;
+    }
 };
