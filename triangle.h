@@ -147,6 +147,7 @@ public:
         vec2D minV, maxV;
         // Get the screen-space bounds of the triangle
         getBoundsWindow(renderer.canvas, minV, maxV);
+        if (minV.x > maxV.x || minV.y > maxV.y) return;
 
 		/*float fAB_start = EdgeFunction(v[0].p[0], v[0].p[1], v[1].p[0], v[1].p[1], floor(minV.x), floor(minV.y));
 		float fBC_start = EdgeFunction(v[1].p[0], v[1].p[1], v[2].p[0], v[2].p[1], floor(minV.x), floor(minV.y));
@@ -225,37 +226,24 @@ public:
         }
     }
 
+    
     void draw2(Renderer& renderer, Light& L, float ka, float kd) {
-
         // Skip very small triangles
         if (area < 1.f) return;
 
         vec2D minV, maxV;
         // Get the screen-space bounds of the triangle
         getBoundsWindow(renderer.canvas, minV, maxV);
-
-        /*float fAB_start = EdgeFunction(v[0].p[0], v[0].p[1], v[1].p[0], v[1].p[1], floor(minV.x), floor(minV.y));
-        float fBC_start = EdgeFunction(v[1].p[0], v[1].p[1], v[2].p[0], v[2].p[1], floor(minV.x), floor(minV.y));
-        float fCA_start = EdgeFunction(v[2].p[0], v[2].p[1], v[0].p[0], v[0].p[1], floor(minV.x), floor(minV.y));
-
-        float stepX_AB = v[1].p[1]-v[0].p[1];
-        float stepY_AB = v[0].p[0]-v[1].p[0];
-        float stepX_BC = v[2].p[1]-v[1].p[1];
-        float stepY_BC = v[1].p[0]-v[2].p[0];
-        float stepX_CA = v[0].p[1]-v[2].p[1];
-        float stepY_CA = v[2].p[0]-v[0].p[0];*/
-
+		if (minV.x > maxV.x || minV.y > maxV.y) return;
+       
         float invArea = 1.0f / area;
         //float alphaStart = -EdgeFunction(v[0].p[0], v[0].p[1], v[1].p[0], v[1].p[1], floor(minV.x), floor(minV.y)) * invArea;
         float betaStart = -EdgeFunction(v[1].p[0], v[1].p[1], v[2].p[0], v[2].p[1], floor(minV.x), floor(minV.y)) * invArea;
         float gammaStart = -EdgeFunction(v[2].p[0], v[2].p[1], v[0].p[0], v[0].p[1], floor(minV.x), floor(minV.y)) * invArea;
-        //float alphaStart = 1 - gammaStart - betaStart;
 
-        //float stepX_Alpha = -(v[1].p[1] - v[0].p[1]) * invArea;
         float stepX_Beta = -(v[2].p[1] - v[1].p[1]) * invArea;
         float stepX_Gamma = -(v[0].p[1] - v[2].p[1]) * invArea;
 
-        //float stepY_Alpha = -(v[0].p[0] - v[1].p[0]) * invArea;
         float stepY_Beta = -(v[1].p[0] - v[2].p[0]) * invArea;
         float stepY_Gamma = -(v[2].p[0] - v[0].p[0]) * invArea;
 
@@ -263,29 +251,22 @@ public:
         int ymax = (int)ceil(maxV.y);
         int xmax = (int)ceil(maxV.x);
         for (int y = (int)(minV.y); y < ymax; y++) {
-            /*float fAB = fAB_start;
-            float fBC = fBC_start;
-            float fCA = fCA_start;*/
-            //float alpha = alphaStart;
             float beta = betaStart;
             float gamma = gammaStart;
             for (int x = (int)(minV.x); x < xmax; x++) {
                 float alpha = 1 - gamma - beta;
                 // Check if the pixel lies inside the triangle
-                // if (fAB <= 0 && fBC <= 0 && fCA <= 0) {
                 if (alpha >= 0 && beta >= 0 && gamma >= 0) {
                     // Interpolate color, depth, and normals
                     colour c = interpolate(beta, gamma, alpha, v[0].rgb, v[1].rgb, v[2].rgb);
                     c.clampColour();
                     float depth = interpolate(beta, gamma, alpha, v[0].p[2], v[1].p[2], v[2].p[2]);
                     vec4 normal = interpolate(beta, gamma, alpha, v[0].normal, v[1].normal, v[2].normal);
-                    //std::cout << normal[0] << " " << normal[1] << " " << normal[2] << std::endl;
                     normal.normalise();
 
                     // Perform Z-buffer test and apply shading
                     if (renderer.zbuffer(x, y) > depth && depth > 0.01f) {
                         // typical shader begin
-                        //L.omega_i.normalise();
                         float dot = max(vec4::dot(L.omega_i, normal), 0.0f);
                         colour a = (c * kd) * (L.L * dot + (L.ambient * kd));
                         // typical shader end
@@ -298,16 +279,9 @@ public:
                 //alpha += stepX_Alpha;
                 gamma += stepX_Gamma;
                 beta += stepX_Beta;
-                /*fAB += stepX_AB;
-                fBC += stepX_BC;
-                fCA += stepX_CA;*/
             }
-            //alphaStart += stepY_Alpha;
             gammaStart += stepY_Gamma;
             betaStart += stepY_Beta;
-            /*fAB_start += stepY_AB;
-            fBC_start += stepY_BC;
-            fCA_start += stepY_CA;*/
         }
     }
     // Compute the 2D bounds of the triangle
