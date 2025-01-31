@@ -5,7 +5,7 @@
 #include "renderer.h"
 #include "light.h"
 #include <iostream>
-
+#include <immintrin.h>
 // Simple support class for a 2D vector
 class vec2D {
 public:
@@ -41,9 +41,9 @@ class triangle {
     float area;        // Area of the triangle
     colour col[3];     // Colors for each vertex of the triangle
 
-	auto EdgeFunction(float xa, float ya, float xb, float yb, float x, float y) {
-		return (x - xa) * (yb - ya) - (y - ya) * (xb - xa);
-	}
+    auto EdgeFunction(float xa, float ya, float xb, float yb, float x, float y) {
+        return (x - xa) * (yb - ya) - (y - ya) * (xb - xa);
+    }
 public:
     // Constructor initializes the triangle with three vertices
     // Input Variables:
@@ -127,7 +127,7 @@ public:
                         // typical shader begin
                         L.omega_i.normalise();
                         float dot = max(vec4::dot(L.omega_i, normal), 0.0f);
-                        colour a = (c * kd) * (L.L * dot + (L.ambient * kd));
+                        colour a = (c * kd) * (L.L * dot) + c*L.ambient * ka;
                         // typical shader end
                         unsigned char r, g, b;
                         a.toRGB(r, g, b);
@@ -138,95 +138,95 @@ public:
             }
         }
     }
-	//Algorithm optimization: Edge Function + Incremental Calculation
+    //Algorithm optimization: Edge Function + Incremental Calculation
     void draw1(Renderer& renderer, Light& L, float ka, float kd) {
-       
+
         // Skip very small triangles
         if (area < 1.f) return;
-        
+
         vec2D minV, maxV;
         // Get the screen-space bounds of the triangle
         getBoundsWindow(renderer.canvas, minV, maxV);
         if (minV.x > maxV.x || minV.y > maxV.y) return;
 
-		/*float fAB_start = EdgeFunction(v[0].p[0], v[0].p[1], v[1].p[0], v[1].p[1], floor(minV.x), floor(minV.y));
-		float fBC_start = EdgeFunction(v[1].p[0], v[1].p[1], v[2].p[0], v[2].p[1], floor(minV.x), floor(minV.y));
-		float fCA_start = EdgeFunction(v[2].p[0], v[2].p[1], v[0].p[0], v[0].p[1], floor(minV.x), floor(minV.y));
+        /*float fAB_start = EdgeFunction(v[0].p[0], v[0].p[1], v[1].p[0], v[1].p[1], floor(minV.x), floor(minV.y));
+        float fBC_start = EdgeFunction(v[1].p[0], v[1].p[1], v[2].p[0], v[2].p[1], floor(minV.x), floor(minV.y));
+        float fCA_start = EdgeFunction(v[2].p[0], v[2].p[1], v[0].p[0], v[0].p[1], floor(minV.x), floor(minV.y));
 
-		float stepX_AB = v[1].p[1]-v[0].p[1];
-		float stepY_AB = v[0].p[0]-v[1].p[0];
-		float stepX_BC = v[2].p[1]-v[1].p[1];
-		float stepY_BC = v[1].p[0]-v[2].p[0];
-		float stepX_CA = v[0].p[1]-v[2].p[1];
-		float stepY_CA = v[2].p[0]-v[0].p[0];*/
+        float stepX_AB = v[1].p[1]-v[0].p[1];
+        float stepY_AB = v[0].p[0]-v[1].p[0];
+        float stepX_BC = v[2].p[1]-v[1].p[1];
+        float stepY_BC = v[1].p[0]-v[2].p[0];
+        float stepX_CA = v[0].p[1]-v[2].p[1];
+        float stepY_CA = v[2].p[0]-v[0].p[0];*/
 
-		float invArea = 1.0f / area;
-		//float alphaStart = -EdgeFunction(v[0].p[0], v[0].p[1], v[1].p[0], v[1].p[1], floor(minV.x), floor(minV.y)) * invArea;
-		float betaStart = -EdgeFunction(v[1].p[0], v[1].p[1], v[2].p[0], v[2].p[1], floor(minV.x), floor(minV.y)) * invArea;
+        float invArea = 1.0f / area;
+        //float alphaStart = -EdgeFunction(v[0].p[0], v[0].p[1], v[1].p[0], v[1].p[1], floor(minV.x), floor(minV.y)) * invArea;
+        float betaStart = -EdgeFunction(v[1].p[0], v[1].p[1], v[2].p[0], v[2].p[1], floor(minV.x), floor(minV.y)) * invArea;
         float gammaStart = -EdgeFunction(v[2].p[0], v[2].p[1], v[0].p[0], v[0].p[1], floor(minV.x), floor(minV.y)) * invArea;
-		//float alphaStart = 1 - gammaStart - betaStart;
+        //float alphaStart = 1 - gammaStart - betaStart;
 
-		//float stepX_Alpha = -(v[1].p[1] - v[0].p[1]) * invArea;
-		float stepX_Beta = -(v[2].p[1] - v[1].p[1]) * invArea;
+        //float stepX_Alpha = -(v[1].p[1] - v[0].p[1]) * invArea;
+        float stepX_Beta = -(v[2].p[1] - v[1].p[1]) * invArea;
         float stepX_Gamma = -(v[0].p[1] - v[2].p[1]) * invArea;
-		
+
         //float stepY_Alpha = -(v[0].p[0] - v[1].p[0]) * invArea;
-		float stepY_Beta = -(v[1].p[0] - v[2].p[0]) * invArea;
+        float stepY_Beta = -(v[1].p[0] - v[2].p[0]) * invArea;
         float stepY_Gamma = -(v[2].p[0] - v[0].p[0]) * invArea;
 
-		//ymax and xmax are uesd to avoid the frequent ceil function in the loop
-		int ymax = (int)ceil(maxV.y);
-		int xmax = (int)ceil(maxV.x);
+        //ymax and xmax are uesd to avoid the frequent ceil function in the loop
+        int ymax = (int)ceil(maxV.y);
+        int xmax = (int)ceil(maxV.x);
         for (int y = (int)(minV.y); y < ymax; y++) {
-			/*float fAB = fAB_start;
-			float fBC = fBC_start;
-			float fCA = fCA_start;*/
-			//float alpha = alphaStart;
-			float beta = betaStart;
-			float gamma = gammaStart;
+            /*float fAB = fAB_start;
+            float fBC = fBC_start;
+            float fCA = fCA_start;*/
+            //float alpha = alphaStart;
+            float beta = betaStart;
+            float gamma = gammaStart;
             for (int x = (int)(minV.x); x < xmax; x++) {
-				float alpha = 1 - gamma - beta;
-               // Check if the pixel lies inside the triangle
-               // if (fAB <= 0 && fBC <= 0 && fCA <= 0) {
-				if (alpha >= 0 && beta >= 0 && gamma >= 0) {
-					// Interpolate color, depth, and normals
-					colour c = interpolate(beta, gamma, alpha, v[0].rgb, v[1].rgb, v[2].rgb);
-					c.clampColour();
-					float depth = interpolate(beta, gamma, alpha, v[0].p[2], v[1].p[2], v[2].p[2]);
-					vec4 normal = interpolate(beta, gamma, alpha, v[0].normal, v[1].normal, v[2].normal);
-					//std::cout << normal[0] << " " << normal[1] << " " << normal[2] << std::endl;
+                float alpha = 1 - gamma - beta;
+                // Check if the pixel lies inside the triangle
+                // if (fAB <= 0 && fBC <= 0 && fCA <= 0) {
+                if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+                    // Interpolate color, depth, and normals
+                    colour c = interpolate(beta, gamma, alpha, v[0].rgb, v[1].rgb, v[2].rgb);
+                    c.clampColour();
+                    float depth = interpolate(beta, gamma, alpha, v[0].p[2], v[1].p[2], v[2].p[2]);
+                    vec4 normal = interpolate(beta, gamma, alpha, v[0].normal, v[1].normal, v[2].normal);
+                    //std::cout << normal[0] << " " << normal[1] << " " << normal[2] << std::endl;
                     normal.normalise();
-                    
-					// Perform Z-buffer test and apply shading
-					if (renderer.zbuffer(x, y) > depth && depth > 0.01f) {
-						// typical shader begin
-						//L.omega_i.normalise();
-						float dot = max(vec4::dot(L.omega_i, normal), 0.0f);
-						colour a = (c * kd) * (L.L * dot + (L.ambient * kd));
-						// typical shader end
-						unsigned char r, g, b;
-						a.toRGB(r, g, b);
-						renderer.canvas.draw(x, y, r, g, b);
-						renderer.zbuffer(x, y) = depth;
-					}
-				}
-				//alpha += stepX_Alpha;
-				gamma += stepX_Gamma;
-				beta += stepX_Beta;
-				/*fAB += stepX_AB;
-				fBC += stepX_BC;
-				fCA += stepX_CA;*/
+
+                    // Perform Z-buffer test and apply shading
+                    if (renderer.zbuffer(x, y) > depth && depth > 0.01f) {
+                        // typical shader begin
+                        //L.omega_i.normalise();
+                        float dot = max(vec4::dot(L.omega_i, normal), 0.0f);
+                        colour a = (c * kd) * (L.L * dot) + c * L.ambient * ka;
+                        // typical shader end
+                        unsigned char r, g, b;
+                        a.toRGB(r, g, b);
+                        renderer.canvas.draw(x, y, r, g, b);
+                        renderer.zbuffer(x, y) = depth;
+                    }
+                }
+                //alpha += stepX_Alpha;
+                gamma += stepX_Gamma;
+                beta += stepX_Beta;
+                /*fAB += stepX_AB;
+                fBC += stepX_BC;
+                fCA += stepX_CA;*/
             }
-			//alphaStart += stepY_Alpha;
-			gammaStart += stepY_Gamma;
-			betaStart += stepY_Beta;
-			/*fAB_start += stepY_AB;
-			fBC_start += stepY_BC;
-			fCA_start += stepY_CA;*/
+            //alphaStart += stepY_Alpha;
+            gammaStart += stepY_Gamma;
+            betaStart += stepY_Beta;
+            /*fAB_start += stepY_AB;
+            fBC_start += stepY_BC;
+            fCA_start += stepY_CA;*/
         }
     }
 
-    
+	//Algorithm optimization: Edge Function + Incremental Calculation + SIMD
     void draw2(Renderer& renderer, Light& L, float ka, float kd) {
         // Skip very small triangles
         if (area < 1.f) return;
@@ -234,8 +234,8 @@ public:
         vec2D minV, maxV;
         // Get the screen-space bounds of the triangle
         getBoundsWindow(renderer.canvas, minV, maxV);
-		if (minV.x > maxV.x || minV.y > maxV.y) return;
-       
+        if (minV.x > maxV.x || minV.y > maxV.y) return;
+
         float invArea = 1.0f / area;
         //float alphaStart = -EdgeFunction(v[0].p[0], v[0].p[1], v[1].p[0], v[1].p[1], floor(minV.x), floor(minV.y)) * invArea;
         float betaStart = -EdgeFunction(v[1].p[0], v[1].p[1], v[2].p[0], v[2].p[1], floor(minV.x), floor(minV.y)) * invArea;
@@ -250,40 +250,153 @@ public:
         //ymax and xmax are uesd to avoid the frequent ceil function in the loop
         int ymax = (int)ceil(maxV.y);
         int xmax = (int)ceil(maxV.x);
-        for (int y = (int)(minV.y); y < ymax; y++) {
+
+		//initialize the constant values
+		__m256 zero8 = _mm256_setzero_ps();
+		__m256 one8 = _mm256_set1_ps(1.f);
+		__m256 depthThreshold8 = _mm256_set1_ps(0.01f);
+		__m256 lightX = _mm256_set1_ps(L.omega_i[0]);
+		__m256 lightY = _mm256_set1_ps(L.omega_i[1]);
+		__m256 lightZ = _mm256_set1_ps(L.omega_i[2]);
+		__m256 lightLR = _mm256_set1_ps(L.L.r * kd);
+		__m256 lightLG = _mm256_set1_ps(L.L.g * kd);
+		__m256 lightLB = _mm256_set1_ps(L.L.b * kd);
+		__m256 lightAR = _mm256_set1_ps(L.ambient.r * ka);
+		__m256 lightAG = _mm256_set1_ps(L.ambient.g * ka);
+		__m256 lightAB = _mm256_set1_ps(L.ambient.b * ka);
+
+        for (int y = (int)(minV.y); y < ymax; y++, gammaStart += stepY_Gamma,betaStart += stepY_Beta) {
             float beta = betaStart;
             float gamma = gammaStart;
-            for (int x = (int)(minV.x); x < xmax; x++) {
-                float alpha = 1 - gamma - beta;
-                // Check if the pixel lies inside the triangle
-                if (alpha >= 0 && beta >= 0 && gamma >= 0) {
-                    // Interpolate color, depth, and normals
-                    colour c = interpolate(beta, gamma, alpha, v[0].rgb, v[1].rgb, v[2].rgb);
-                    c.clampColour();
-                    float depth = interpolate(beta, gamma, alpha, v[0].p[2], v[1].p[2], v[2].p[2]);
-                    vec4 normal = interpolate(beta, gamma, alpha, v[0].normal, v[1].normal, v[2].normal);
-                    normal.normalise();
 
-                    // Perform Z-buffer test and apply shading
-                    if (renderer.zbuffer(x, y) > depth && depth > 0.01f) {
-                        // typical shader begin
-                        float dot = max(vec4::dot(L.omega_i, normal), 0.0f);
-                        colour a = (c * kd) * (L.L * dot + (L.ambient * kd));
-                        // typical shader end
+            int x = (int)(minV.x);
+            for (; x + 7 < xmax; x += 8, beta += stepX_Beta * 8,gamma += stepX_Gamma * 8) {
+
+                __m256 idx8 = _mm256_setr_ps(0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f);
+                __m256 beta8 = _mm256_add_ps(_mm256_set1_ps(beta), _mm256_mul_ps(idx8, _mm256_set1_ps(stepX_Beta)));
+                __m256 gamma8 = _mm256_add_ps(_mm256_set1_ps(gamma), _mm256_mul_ps(idx8, _mm256_set1_ps(stepX_Gamma)));
+                __m256 alpha8 = _mm256_sub_ps(one8, _mm256_add_ps(beta8, gamma8));
+				// Check if the pixel lies inside the triangle
+                __m256 mask = _mm256_and_ps(_mm256_and_ps(
+                    _mm256_cmp_ps(alpha8, zero8, _CMP_GE_OQ), _mm256_cmp_ps(beta8, zero8, _CMP_GE_OQ)),
+                    _mm256_cmp_ps(gamma8, zero8, _CMP_GE_OQ));
+
+                int insideBits = _mm256_movemask_ps(mask);
+                if (insideBits == 0) continue;
+
+                
+				//Based on the depth value, decide whether to draw the pixel
+				float* zbuf_row_base = &renderer.zbuffer(0, y);
+                __m256i x_offsets = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+                __m256i gather_indices = _mm256_add_epi32(_mm256_set1_epi32(x),x_offsets);
+				__m256 zbuffer_depths = _mm256_i32gather_ps(zbuf_row_base, gather_indices, 4);
+                
+                __m256 depth8 = _mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(beta8, _mm256_set1_ps(v[0].p[2])),
+                    _mm256_mul_ps(gamma8, _mm256_set1_ps(v[1].p[2]))),
+                    _mm256_mul_ps(alpha8, _mm256_set1_ps(v[2].p[2])));
+
+                __m256 mask_depth = _mm256_and_ps(
+                    _mm256_cmp_ps(depth8, zbuffer_depths, _CMP_LT_OQ),  // depth < zbuffer
+                    _mm256_cmp_ps(depth8, depthThreshold8, _CMP_GT_OQ) // depth > 0.01
+                );
+				//combine the mask and mask_depth
+				__m256 mask_active = _mm256_and_ps(mask, mask_depth);
+
+				//color calculation
+				__m256 r = _mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(beta8, _mm256_set1_ps(v[0].rgb.r)),
+					_mm256_mul_ps(gamma8, _mm256_set1_ps(v[1].rgb.r))),
+					_mm256_mul_ps(alpha8, _mm256_set1_ps(v[2].rgb.r)));
+				__m256 g = _mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(beta8, _mm256_set1_ps(v[0].rgb.g)),
+					_mm256_mul_ps(gamma8, _mm256_set1_ps(v[1].rgb.g))),
+					_mm256_mul_ps(alpha8, _mm256_set1_ps(v[2].rgb.g)));
+				__m256 b = _mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(beta8, _mm256_set1_ps(v[0].rgb.b)),
+					_mm256_mul_ps(gamma8, _mm256_set1_ps(v[1].rgb.b))),
+					_mm256_mul_ps(alpha8, _mm256_set1_ps(v[2].rgb.b)));
+				//normal calculation
+				__m256 normalX = _mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(beta8, _mm256_set1_ps(v[0].normal[0])),
+					_mm256_mul_ps(gamma8, _mm256_set1_ps(v[1].normal[0]))),
+					_mm256_mul_ps(alpha8, _mm256_set1_ps(v[2].normal[0])));
+				__m256 normalY = _mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(beta8, _mm256_set1_ps(v[0].normal[1])),
+					_mm256_mul_ps(gamma8, _mm256_set1_ps(v[1].normal[1]))),
+					_mm256_mul_ps(alpha8, _mm256_set1_ps(v[2].normal[1])));
+				__m256 normalZ = _mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(beta8, _mm256_set1_ps(v[0].normal[2])),
+					_mm256_mul_ps(gamma8, _mm256_set1_ps(v[1].normal[2]))),
+					_mm256_mul_ps(alpha8, _mm256_set1_ps(v[2].normal[2])));
+
+                __m256 normalLength = _mm256_sqrt_ps(_mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(normalX, normalX),
+                    _mm256_mul_ps(normalY, normalY)),
+                    _mm256_mul_ps(normalZ, normalZ)));
+                normalX = _mm256_div_ps(normalX, normalLength);
+                normalY = _mm256_div_ps(normalY, normalLength);
+                normalZ = _mm256_div_ps(normalZ, normalLength);
+
+                /* __m256 rsqrtX = _mm256_rsqrt_ps(_mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(normalX, normalX),
+                         _mm256_mul_ps(normalY, normalY)),
+                         _mm256_mul_ps(normalZ, normalZ)));
+                     normalX = _mm256_mul_ps(normalX, rsqrtX);
+                     normalY = _mm256_mul_ps(normalY, rsqrtX);
+                     normalZ = _mm256_mul_ps(normalZ, rsqrtX);*/
+
+					 //lighting calculation
+				
+                __m256 dot_product = _mm256_max_ps(_mm256_add_ps(_mm256_add_ps(
+                    _mm256_mul_ps(normalX, lightX),
+                    _mm256_mul_ps(normalY, lightY)),
+                    _mm256_mul_ps(normalZ, lightZ)), zero8);
+				__m256 aR = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(r, lightLR), dot_product), _mm256_mul_ps(r, lightAR));
+				__m256 aG = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(g, lightLG), dot_product), _mm256_mul_ps(g, lightAG));
+				__m256 aB = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(b, lightLB), dot_product), _mm256_mul_ps(b, lightAB));
+
+				alignas(32) float aRf[8];
+				alignas(32) float aGf[8];
+				alignas(32) float aBf[8];
+				_mm256_store_ps(aRf, aR);
+				_mm256_store_ps(aGf, aG);
+				_mm256_store_ps(aBf, aB);
+
+				alignas(32) float depthf[8];
+				_mm256_store_ps(depthf, depth8);
+
+                for (int i = 0; i < 8; i++) {
+                    if ((int)_mm256_movemask_ps(mask_active) & (1 << i)) {
+						colour a;
+						a.r = min(aRf[i], 1.0f);
+						a.g = min(aGf[i], 1.0f);
+						a.b = min(aBf[i], 1.0f);
                         unsigned char r, g, b;
-                        a.toRGB(r, g, b);
-                        renderer.canvas.draw(x, y, r, g, b);
-                        renderer.zbuffer(x, y) = depth;
+						a.toRGB(r, g, b);
+						renderer.canvas.draw(x + i, y, r, g, b);
+						renderer.zbuffer(x + i, y) = depthf[i];
                     }
                 }
-                //alpha += stepX_Alpha;
-                gamma += stepX_Gamma;
-                beta += stepX_Beta;
             }
-            gammaStart += stepY_Gamma;
-            betaStart += stepY_Beta;
+			for (; x < xmax; x++, beta += stepX_Beta, gamma += stepX_Gamma) {
+				float alpha = 1 - gamma - beta;
+				// Check if the pixel lies inside the triangle
+				if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+					// Interpolate color, depth, and normals
+					colour c = interpolate(beta, gamma, alpha, v[0].rgb, v[1].rgb, v[2].rgb);
+					c.clampColour();
+					float depth = interpolate(beta, gamma, alpha, v[0].p[2], v[1].p[2], v[2].p[2]);
+					vec4 normal = interpolate(beta, gamma, alpha, v[0].normal, v[1].normal, v[2].normal);
+					normal.normalise();
+
+					// Perform Z-buffer test and apply shading
+					if (renderer.zbuffer(x, y) > depth && depth > 0.01f) {
+						// typical shader begin
+						float dot = max(vec4::dot(L.omega_i, normal), 0.0f);
+						colour a = (c * kd) * (L.L * dot) + c * L.ambient * ka;
+						// typical shader end
+						unsigned char r, g, b;
+						a.toRGB(r, g, b);
+						renderer.canvas.draw(x, y, r, g, b);
+						renderer.zbuffer(x, y) = depth;
+					}
+				}
+			}
         }
     }
+
     // Compute the 2D bounds of the triangle
     // Output Variables:
     // - minV, maxV: Minimum and maximum bounds in 2D space
@@ -332,4 +445,5 @@ public:
         }
         std::cout << std::endl;
     }
+
 };

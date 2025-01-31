@@ -37,7 +37,7 @@ void render(Renderer& renderer, Mesh* mesh, matrix& camera, Light& L) {
 
             // Transform normals into world space for accurate lighting
             // no need for perspective correction as no shearing or non-uniform scaling
-            t[i].normal = mesh->world * mesh->vertices[ind.v[i]].normal; 
+            t[i].normal = mesh->world * mesh->vertices[ind.v[i]].normal;
             t[i].normal.normalise();
 
             // Map normalized device coordinates to screen space
@@ -59,7 +59,7 @@ void render(Renderer& renderer, Mesh* mesh, matrix& camera, Light& L) {
 }
 
 // using Mesh& instead of Mesh*
-void render1(Renderer& renderer, Mesh &mesh, matrix& camera, Light& L) {
+void render1(Renderer& renderer, Mesh& mesh, matrix& camera, Light& L) {
     // Combine perspective, camera, and world transformations for the mesh
     matrix p = renderer.perspective * camera * mesh.world;
 
@@ -100,36 +100,36 @@ void render1(Renderer& renderer, Mesh &mesh, matrix& camera, Light& L) {
 void render2(Renderer& renderer, Mesh& mesh, matrix& camera, Light& L) {
     // Combine perspective, camera, and world transformations for the mesh
     matrix p = renderer.perspective * camera * mesh.world;
-    
+
     // Transform each vertex of the mesh
-	int size = mesh.vertices.size();
-	std::vector<Vertex> transformedVertices(size);
+    int size = mesh.vertices.size();
+    std::vector<Vertex> transformedVertices(size);
 
     for (int i = 0; i < size; i++) {
-		transformedVertices[i].p = p * mesh.vertices[i].p; // Apply transformations
-		transformedVertices[i].p.divideW(); // Perspective division to normalize coordinates
+        transformedVertices[i].p = p * mesh.vertices[i].p; // Apply transformations
+        transformedVertices[i].p.divideW(); // Perspective division to normalize coordinates
 
-		// Transform normals into world space for accurate lighting
-		// no need for perspective correction as no shearing or non-uniform scaling
-		transformedVertices[i].normal = mesh.world * mesh.vertices[i].normal;
-		transformedVertices[i].normal.normalise();
+        // Transform normals into world space for accurate lighting
+        // no need for perspective correction as no shearing or non-uniform scaling
+        transformedVertices[i].normal = mesh.world * mesh.vertices[i].normal;
+        transformedVertices[i].normal.normalise();
 
-		// Map normalized device coordinates to screen space
-		transformedVertices[i].p[0] = (transformedVertices[i].p[0] + 1.f) * 0.5f * static_cast<float>(renderer.canvas.getWidth());
-		transformedVertices[i].p[1] = (transformedVertices[i].p[1] + 1.f) * 0.5f * static_cast<float>(renderer.canvas.getHeight());
-		transformedVertices[i].p[1] = renderer.canvas.getHeight() - transformedVertices[i].p[1]; // Invert y-axis
+        // Map normalized device coordinates to screen space
+        transformedVertices[i].p[0] = (transformedVertices[i].p[0] + 1.f) * 0.5f * static_cast<float>(renderer.canvas.getWidth());
+        transformedVertices[i].p[1] = (transformedVertices[i].p[1] + 1.f) * 0.5f * static_cast<float>(renderer.canvas.getHeight());
+        transformedVertices[i].p[1] = renderer.canvas.getHeight() - transformedVertices[i].p[1]; // Invert y-axis
 
-		// Copy vertex colours
-		transformedVertices[i].rgb = mesh.vertices[i].rgb;
+        // Copy vertex colours
+        transformedVertices[i].rgb = mesh.vertices[i].rgb;
     }
 
     // Iterate through all triangles in the mesh
     for (triIndices& ind : mesh.triangles) {
         // Clip triangles with Z-values outside [-1, 1]
-		if (fabs(transformedVertices[ind.v[0]].p[2]) > 1.0f || fabs(transformedVertices[ind.v[1]].p[2]) > 1.0f || fabs(transformedVertices[ind.v[2]].p[2]) > 1.0f) continue;
-        
+        if (fabs(transformedVertices[ind.v[0]].p[2]) > 1.0f || fabs(transformedVertices[ind.v[1]].p[2]) > 1.0f || fabs(transformedVertices[ind.v[2]].p[2]) > 1.0f) continue;
+
         // Create a triangle object and render it
-		triangle tri(transformedVertices[ind.v[0]], transformedVertices[ind.v[1]], transformedVertices[ind.v[2]]);
+        triangle tri(transformedVertices[ind.v[0]], transformedVertices[ind.v[1]], transformedVertices[ind.v[2]]);
         tri.draw(renderer, L, mesh.ka, mesh.kd);
     }
 }
@@ -170,8 +170,8 @@ void render3(Renderer& renderer, Mesh& mesh, matrix& camera, Light& L) {
         tri.draw1(renderer, L, mesh.ka, mesh.kd);
     }
 }
-//using draw2 (optimizating algorithm for rasterization) + (skip when minV>maxV)
-// addbackface culling
+//Using draw1 (optimizating algorithm for rasterization)
+//Adding backface culling
 void render4(Renderer& renderer, Mesh& mesh, matrix& camera, Light& L) {
     // Combine perspective, camera, and world transformations for the mesh
     matrix p = renderer.perspective * camera * mesh.world;
@@ -181,7 +181,7 @@ void render4(Renderer& renderer, Mesh& mesh, matrix& camera, Light& L) {
         Vertex t[3]; // Temporary array to store transformed triangle vertices
 
         if (vec4::dot(mesh.world * mesh.vertices[ind.v[0]].normal, mesh.world * mesh.vertices[ind.v[0]].p - vec4(0.0f, 0.0f, -camera.getTranslationZ(), 1.0f)) >= 0.0f) continue;
-        
+
         // Transform each vertex of the triangle
         for (unsigned int i = 0; i < 3; i++) {
             t[i].p = p * mesh.vertices[ind.v[i]].p; // Apply transformations
@@ -203,14 +203,15 @@ void render4(Renderer& renderer, Mesh& mesh, matrix& camera, Light& L) {
 
         // Clip triangles with Z-values outside [-1, 1]
         if (fabs(t[0].p[2]) > 1.0f || fabs(t[1].p[2]) > 1.0f || fabs(t[2].p[2]) > 1.0f) continue;
-        
+
         // Create a triangle object and render it
         triangle tri(t[0], t[1], t[2]);
         tri.draw1(renderer, L, mesh.ka, mesh.kd);
     }
 }
 
-
+//Using draw2 (optimizating algorithm for rasterization) + (skip when minV>maxV)
+//Adding backface culling
 void render5(Renderer& renderer, Mesh& mesh, matrix& camera, Light& L) {
     // Combine perspective, camera, and world transformations for the mesh
     matrix p = renderer.perspective * camera * mesh.world;
@@ -267,7 +268,7 @@ void sceneTest() {
 
     // add meshes to scene
     scene.push_back(&mesh);
-   // scene.push_back(&mesh2); 
+    // scene.push_back(&mesh2); 
 
     float x = 0.0f, y = 0.0f, z = -4.0f; // Initial translation parameters
     mesh.world = matrix::makeTranslation(x, y, z);
@@ -386,15 +387,15 @@ void scene1_1() {
     std::vector<Mesh> scene(40);
 
     for (unsigned int i = 0; i < 20; i++) {
-        scene[i*2] = Mesh::makeCube(1.f);
-        scene[i*2].world = matrix::makeTranslation(-2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
-        scene[i*2 + 1] = Mesh::makeCube(1.f);
-        scene[i*2 + 1].world = matrix::makeTranslation(2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
+        scene[i * 2] = Mesh::makeCube(1.f);
+        scene[i * 2].world = matrix::makeTranslation(-2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
+        scene[i * 2 + 1] = Mesh::makeCube(1.f);
+        scene[i * 2 + 1].world = matrix::makeTranslation(2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
     }
 
     float zoffset = 8.0f; // Initial camera Z-offset
     float step = -0.1f;  // Step size for camera movement
-   
+
     auto start = std::chrono::high_resolution_clock::now();
     std::chrono::time_point<std::chrono::high_resolution_clock> end;
     int cycle = 0;
@@ -426,7 +427,7 @@ void scene1_1() {
             render1(renderer, m, camera, L);
         renderer.present();
     }
-    
+
 }
 
 //Using Mesh instead of Mesh*
@@ -446,15 +447,15 @@ void scene1_2() {
         scene[i * 2 + 1] = Mesh::makeCube(1.f);
         scene[i * 2 + 1].world = matrix::makeTranslation(2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
     }
-	//pre-calculate the camera matrix
+    //pre-calculate the camera matrix
     std::vector<float> cameraMatrix;
     for (float zoffset = 8.0f, step = -0.1f; zoffset <= 8.f; zoffset += step) {
         if (zoffset < -60.f) step *= -1.f;
         cameraMatrix.emplace_back(-zoffset);
     }
-	//used to index the camera matrix in the loop
-	int cameraIndex = 0;
-	int cameraSize = cameraMatrix.size();
+    //used to index the camera matrix in the loop
+    int cameraIndex = 0;
+    int cameraSize = cameraMatrix.size();
 
     auto start = std::chrono::high_resolution_clock::now();
     std::chrono::time_point<std::chrono::high_resolution_clock> end;
@@ -471,7 +472,7 @@ void scene1_2() {
 
         if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
 
-		camera.setTranslationZ(cameraMatrix[cameraIndex]);// Update camera position
+        camera.setTranslationZ(cameraMatrix[cameraIndex]);// Update camera position
 
         for (auto& m : scene)
             render1(renderer, m, camera, L);
