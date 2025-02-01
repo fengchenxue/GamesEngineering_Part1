@@ -323,22 +323,26 @@ public:
 					_mm256_mul_ps(gamma8, _mm256_set1_ps(v[1].normal[2]))),
 					_mm256_mul_ps(alpha8, _mm256_set1_ps(v[2].normal[2])));
 
-                __m256 normalLength = _mm256_sqrt_ps(_mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(normalX, normalX),
+				//two ways to normalize the normal vector
+				//1. using sqrt
+				//2. using rsqrt. 
+                //rsqrt is faster than sqrt but the precision is lower than sqrt
+
+                /*__m256 normalLength = _mm256_sqrt_ps(_mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(normalX, normalX),
                     _mm256_mul_ps(normalY, normalY)),
                     _mm256_mul_ps(normalZ, normalZ)));
                 normalX = _mm256_div_ps(normalX, normalLength);
                 normalY = _mm256_div_ps(normalY, normalLength);
-                normalZ = _mm256_div_ps(normalZ, normalLength);
+                normalZ = _mm256_div_ps(normalZ, normalLength);*/
 
-                /* __m256 rsqrtX = _mm256_rsqrt_ps(_mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(normalX, normalX),
+                 __m256 rsqrtX = _mm256_rsqrt_ps(_mm256_add_ps(_mm256_add_ps(_mm256_mul_ps(normalX, normalX),
                          _mm256_mul_ps(normalY, normalY)),
                          _mm256_mul_ps(normalZ, normalZ)));
                      normalX = _mm256_mul_ps(normalX, rsqrtX);
                      normalY = _mm256_mul_ps(normalY, rsqrtX);
-                     normalZ = _mm256_mul_ps(normalZ, rsqrtX);*/
+                     normalZ = _mm256_mul_ps(normalZ, rsqrtX);
 
 					 //lighting calculation
-				
                 __m256 dot_product = _mm256_max_ps(_mm256_add_ps(_mm256_add_ps(
                     _mm256_mul_ps(normalX, lightX),
                     _mm256_mul_ps(normalY, lightY)),
@@ -347,22 +351,27 @@ public:
 				__m256 aG = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(g, lightLG), dot_product), _mm256_mul_ps(g, lightAG));
 				__m256 aB = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(b, lightLB), dot_product), _mm256_mul_ps(b, lightAB));
 
+                aR = _mm256_min_ps(_mm256_max_ps(aR, zero8), one8);
+                aG = _mm256_min_ps(_mm256_max_ps(aG, zero8), one8);
+                aB = _mm256_min_ps(_mm256_max_ps(aB, zero8), one8);
+
+				//extract the colour data from the SIMD register
 				alignas(32) float aRf[8];
 				alignas(32) float aGf[8];
 				alignas(32) float aBf[8];
 				_mm256_store_ps(aRf, aR);
 				_mm256_store_ps(aGf, aG);
 				_mm256_store_ps(aBf, aB);
-
+				//extract the depth data from the SIMD register
 				alignas(32) float depthf[8];
 				_mm256_store_ps(depthf, depth8);
 
                 for (int i = 0; i < 8; i++) {
                     if ((int)_mm256_movemask_ps(mask_active) & (1 << i)) {
 						colour a;
-						a.r = min(aRf[i], 1.0f);
-						a.g = min(aGf[i], 1.0f);
-						a.b = min(aBf[i], 1.0f);
+						a.r = aRf[i];
+						a.g = aGf[i];
+						a.b = aBf[i];
                         unsigned char r, g, b;
 						a.toRGB(r, g, b);
 						renderer.canvas.draw(x + i, y, r, g, b);
@@ -370,6 +379,7 @@ public:
                     }
                 }
             }
+			//handle the remaining pixels
 			for (; x < xmax; x++, beta += stepX_Beta, gamma += stepX_Gamma) {
 				float alpha = 1 - gamma - beta;
 				// Check if the pixel lies inside the triangle

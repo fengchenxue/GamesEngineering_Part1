@@ -645,6 +645,7 @@ void scene1_5() {
         renderer.present();
     }
 }
+//renderer5 SIMD
 void scene1_6() {
     Renderer renderer;
     matrix camera;
@@ -693,6 +694,58 @@ void scene1_6() {
 
         for (auto& m : scene)
             render5(renderer, m, camera, L);
+        renderer.present();
+    }
+}
+//MultiThreading for mesh
+void scene1_7() {
+    Renderer renderer;
+    matrix camera;
+    Light L{ vec4(0.f, 1.f, 1.f, 0.f), colour(1.0f, 1.0f, 1.0f), colour(0.1f, 0.1f, 0.1f) };
+    L.omega_i.normalise();
+    bool running = true;
+
+    std::vector<Mesh> scene(40);
+
+    for (unsigned int i = 0; i < 20; i++) {
+        scene[i * 2] = Mesh::makeCube(1.f);
+        scene[i * 2].world = matrix::makeTranslation(-2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
+        scene[i * 2 + 1] = Mesh::makeCube(1.f);
+        scene[i * 2 + 1].world = matrix::makeTranslation(2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
+    }
+
+    float zoffset = 8.0f; // Initial camera Z-offset
+    float step = -0.1f;  // Step size for camera movement
+
+    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end;
+    int cycle = 0;
+
+    // Main rendering loop
+    while (running) {
+        renderer.canvas.checkInput();
+        renderer.clear();
+
+        camera = matrix::makeTranslation(0, 0, -zoffset); // Update camera position
+
+        // Rotate the first two cubes in the scene
+        scene[0].world = scene[0].world * matrix::makeRotateXYZ(0.1f, 0.1f, 0.0f);
+        scene[1].world = scene[1].world * matrix::makeRotateXYZ(0.0f, 0.1f, 0.2f);
+
+        if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
+
+        zoffset += step;
+        if (zoffset < -60.f || zoffset > 8.f) {
+            step *= -1.f;
+            if (++cycle % 2 == 0) {
+                end = std::chrono::high_resolution_clock::now();
+                std::cout << cycle / 2 << " :" << std::chrono::duration<double, std::milli>(end - start).count() << "ms\n";
+                start = std::chrono::high_resolution_clock::now();
+            }
+        }
+
+        for (auto& m : scene)
+            //render5(renderer, m, camera, L);
         renderer.present();
     }
 }
