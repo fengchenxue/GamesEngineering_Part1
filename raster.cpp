@@ -5,7 +5,8 @@
 #include "GamesEngineeringBase.h" // Include the GamesEngineeringBase header
 #include <algorithm>
 #include <chrono>
-
+#include <vector>
+#include<thread>
 #include <cmath>
 #include "matrix.h"
 #include "colour.h"
@@ -15,7 +16,7 @@
 #include "RNG.h"
 #include "light.h"
 #include "triangle.h"
-
+#include"MultiThreading.h"
 // Main rendering function that processes a mesh, transforms its vertices, applies lighting, and draws triangles on the canvas.
 // Input Variables:
 // - renderer: The Renderer object used for drawing.
@@ -714,21 +715,20 @@ void scene1_7() {
         scene[i * 2 + 1].world = matrix::makeTranslation(2.0f, 0.0f, (-3 * static_cast<float>(i))) * makeRandomRotation();
     }
 
-    float zoffset = 8.0f; // Initial camera Z-offset
-    float step = -0.1f;  // Step size for camera movement
+    float zoffset = 8.0f;
+    float step = -0.1f;
 
     auto start = std::chrono::high_resolution_clock::now();
     std::chrono::time_point<std::chrono::high_resolution_clock> end;
     int cycle = 0;
 
-    // Main rendering loop
+    ThreadPool pool;
+
     while (running) {
         renderer.canvas.checkInput();
         renderer.clear();
 
-        camera = matrix::makeTranslation(0, 0, -zoffset); // Update camera position
-
-        // Rotate the first two cubes in the scene
+        camera = matrix::makeTranslation(0, 0, -zoffset);
         scene[0].world = scene[0].world * matrix::makeRotateXYZ(0.1f, 0.1f, 0.0f);
         scene[1].world = scene[1].world * matrix::makeRotateXYZ(0.0f, 0.1f, 0.2f);
 
@@ -744,11 +744,16 @@ void scene1_7() {
             }
         }
 
-        for (auto& m : scene)
-            //render5(renderer, m, camera, L);
+
+        for (auto& m : scene) {
+            pool.enqueue(render5, std::ref(renderer), std::ref(m), std::ref(camera), std::ref(L));
+        }
+        pool.waitForAllTasks();
         renderer.present();
     }
 }
+
+
 // Scene with a grid of cubes and a moving sphere
 // No input variables
 void scene2() {
@@ -827,7 +832,7 @@ int main() {
     //scene2();
     //sceneTest(); 
 
-    scene1_6();
+    scene1_7();
 
     return 0;
 }
