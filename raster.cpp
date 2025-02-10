@@ -823,16 +823,485 @@ void scene2() {
     for (auto& m : scene)
         delete m;
 }
+void scene2_4() {
+    Renderer renderer;
+    matrix camera = matrix::makeIdentity();
+    Light L{ vec4(0.f, 1.f, 1.f, 0.f), colour(1.0f, 1.0f, 1.0f), colour(0.1f, 0.1f, 0.1f) };
+	L.omega_i.normalise();
 
+    std::vector<Mesh> scene(49);
+
+    struct rRot { float x; float y; float z; }; // Structure to store random rotation parameters
+    std::vector<rRot> rotations;
+
+    RandomNumberGenerator& rng = RandomNumberGenerator::getInstance();
+
+    int index;
+    // Create a grid of cubes with random rotations
+    for (unsigned int y = 0; y < 6; y++) {
+        for (unsigned int x = 0; x < 8; x++) {
+			index = y * 8 + x;
+            scene[index] = Mesh::makeCube(1.f);
+            scene[index].world = matrix::makeTranslation(-7.0f + (static_cast<float>(x) * 2.f), 5.0f - (static_cast<float>(y) * 2.f), -8.f);
+            rRot r{ rng.getRandomFloat(-.1f, .1f), rng.getRandomFloat(-.1f, .1f), rng.getRandomFloat(-.1f, .1f) };
+            rotations.push_back(r);
+        }
+    }
+
+    // Create a sphere and add it to the scene
+    scene[48]= Mesh::makeSphere(1.0f, 10, 20);
+    float sphereOffset = -6.f;
+    float sphereStep = 0.1f;
+    scene[48].world = matrix::makeTranslation(sphereOffset, 0.f, -6.f);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end;
+    int cycle = 0;
+
+    bool running = true;
+    while (running) {
+        renderer.canvas.checkInput();
+        renderer.clear();
+
+        // Rotate each cube in the grid
+        for (unsigned int i = 0; i < rotations.size(); i++)
+            scene[i].world = scene[i].world * matrix::makeRotateXYZ(rotations[i].x, rotations[i].y, rotations[i].z);
+
+        // Move the sphere back and forth
+        sphereOffset += sphereStep;
+        scene[48].world = matrix::makeTranslation(sphereOffset, 0.f, -6.f);
+        if (sphereOffset > 6.0f || sphereOffset < -6.0f) {
+            sphereStep *= -1.f;
+            if (++cycle % 2 == 0) {
+                end = std::chrono::high_resolution_clock::now();
+                std::cout << cycle / 2 << " :" << std::chrono::duration<double, std::milli>(end - start).count() << "ms\n";
+                start = std::chrono::high_resolution_clock::now();
+            }
+        }
+
+        if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
+
+        for (auto& m : scene)
+            render3(renderer, m, camera, L);
+        renderer.present();
+    }
+}
+void scene2_5() {
+    Renderer renderer;
+    matrix camera = matrix::makeIdentity();
+    Light L{ vec4(0.f, 1.f, 1.f, 0.f), colour(1.0f, 1.0f, 1.0f), colour(0.1f, 0.1f, 0.1f) };
+    L.omega_i.normalise();
+
+    std::vector<Mesh> scene(49);
+
+    struct rRot { float x; float y; float z; }; // Structure to store random rotation parameters
+    std::vector<rRot> rotations;
+
+    RandomNumberGenerator& rng = RandomNumberGenerator::getInstance();
+
+    int index;
+    // Create a grid of cubes with random rotations
+    for (unsigned int y = 0; y < 6; y++) {
+        for (unsigned int x = 0; x < 8; x++) {
+            index = y * 8 + x;
+            scene[index] = Mesh::makeCube(1.f);
+            scene[index].world = matrix::makeTranslation(-7.0f + (static_cast<float>(x) * 2.f), 5.0f - (static_cast<float>(y) * 2.f), -8.f);
+            rRot r{ rng.getRandomFloat(-.1f, .1f), rng.getRandomFloat(-.1f, .1f), rng.getRandomFloat(-.1f, .1f) };
+            rotations.push_back(r);
+        }
+    }
+
+    // Create a sphere and add it to the scene
+    scene[48] = Mesh::makeSphere(1.0f, 10, 20);
+    float sphereOffset = -6.f;
+    float sphereStep = 0.1f;
+    scene[48].world = matrix::makeTranslation(sphereOffset, 0.f, -6.f);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end;
+    int cycle = 0;
+
+    bool running = true;
+    while (running) {
+        renderer.canvas.checkInput();
+        renderer.clear();
+
+        // Rotate each cube in the grid
+        for (unsigned int i = 0; i < rotations.size(); i++)
+            scene[i].world = scene[i].world * matrix::makeRotateXYZ(rotations[i].x, rotations[i].y, rotations[i].z);
+
+        // Move the sphere back and forth
+        sphereOffset += sphereStep;
+        scene[48].world = matrix::makeTranslation(sphereOffset, 0.f, -6.f);
+        if (sphereOffset > 6.0f || sphereOffset < -6.0f) {
+            sphereStep *= -1.f;
+            if (++cycle % 2 == 0) {
+                end = std::chrono::high_resolution_clock::now();
+                std::cout << cycle / 2 << " :" << std::chrono::duration<double, std::milli>(end - start).count() << "ms\n";
+                start = std::chrono::high_resolution_clock::now();
+            }
+        }
+
+        if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
+
+        for (auto& m : scene)
+            render4(renderer, m, camera, L);
+        renderer.present();
+    }
+}
+void scene2_6() {
+    Renderer renderer;
+    matrix camera = matrix::makeIdentity();
+    Light L{ vec4(0.f, 1.f, 1.f, 0.f), colour(1.0f, 1.0f, 1.0f), colour(0.1f, 0.1f, 0.1f) };
+    L.omega_i.normalise();
+
+    std::vector<Mesh> scene(49);
+
+    struct rRot { float x; float y; float z; }; // Structure to store random rotation parameters
+    std::vector<rRot> rotations;
+
+    RandomNumberGenerator& rng = RandomNumberGenerator::getInstance();
+
+    int index;
+    // Create a grid of cubes with random rotations
+    for (unsigned int y = 0; y < 6; y++) {
+        for (unsigned int x = 0; x < 8; x++) {
+            index = y * 8 + x;
+            scene[index] = Mesh::makeCube(1.f);
+            scene[index].world = matrix::makeTranslation(-7.0f + (static_cast<float>(x) * 2.f), 5.0f - (static_cast<float>(y) * 2.f), -8.f);
+            rRot r{ rng.getRandomFloat(-.1f, .1f), rng.getRandomFloat(-.1f, .1f), rng.getRandomFloat(-.1f, .1f) };
+            rotations.push_back(r);
+        }
+    }
+
+    // Create a sphere and add it to the scene
+    scene[48] = Mesh::makeSphere(1.0f, 10, 20);
+    float sphereOffset = -6.f;
+    float sphereStep = 0.1f;
+    scene[48].world = matrix::makeTranslation(sphereOffset, 0.f, -6.f);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end;
+    int cycle = 0;
+
+    bool running = true;
+    while (running) {
+        renderer.canvas.checkInput();
+        renderer.clear();
+
+        // Rotate each cube in the grid
+        for (unsigned int i = 0; i < rotations.size(); i++)
+            scene[i].world = scene[i].world * matrix::makeRotateXYZ(rotations[i].x, rotations[i].y, rotations[i].z);
+
+        // Move the sphere back and forth
+        sphereOffset += sphereStep;
+        scene[48].world = matrix::makeTranslation(sphereOffset, 0.f, -6.f);
+        if (sphereOffset > 6.0f || sphereOffset < -6.0f) {
+            sphereStep *= -1.f;
+            if (++cycle % 2 == 0) {
+                end = std::chrono::high_resolution_clock::now();
+                std::cout << cycle / 2 << " :" << std::chrono::duration<double, std::milli>(end - start).count() << "ms\n";
+                start = std::chrono::high_resolution_clock::now();
+            }
+        }
+
+        if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
+
+        for (auto& m : scene)
+            render5(renderer, m, camera, L);
+        renderer.present();
+    }
+}
+void scene2_7() {
+    Renderer renderer;
+    matrix camera = matrix::makeIdentity();
+    Light L{ vec4(0.f, 1.f, 1.f, 0.f), colour(1.0f, 1.0f, 1.0f), colour(0.1f, 0.1f, 0.1f) };
+    L.omega_i.normalise();
+
+    std::vector<Mesh> scene(49);
+
+    struct rRot { float x; float y; float z; }; // Structure to store random rotation parameters
+    std::vector<rRot> rotations;
+
+    RandomNumberGenerator& rng = RandomNumberGenerator::getInstance();
+
+    int index;
+    // Create a grid of cubes with random rotations
+    for (unsigned int y = 0; y < 6; y++) {
+        for (unsigned int x = 0; x < 8; x++) {
+            index = y * 8 + x;
+            scene[index] = Mesh::makeCube(1.f);
+            scene[index].world = matrix::makeTranslation(-7.0f + (static_cast<float>(x) * 2.f), 5.0f - (static_cast<float>(y) * 2.f), -8.f);
+            rRot r{ rng.getRandomFloat(-.1f, .1f), rng.getRandomFloat(-.1f, .1f), rng.getRandomFloat(-.1f, .1f) };
+            rotations.push_back(r);
+        }
+    }
+
+    // Create a sphere and add it to the scene
+    scene[48] = Mesh::makeSphere(1.0f, 10, 20);
+    float sphereOffset = -6.f;
+    float sphereStep = 0.1f;
+    scene[48].world = matrix::makeTranslation(sphereOffset, 0.f, -6.f);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end;
+    int cycle = 0;
+
+	ThreadPool pool;
+    bool running = true;
+    while (running) {
+        renderer.canvas.checkInput();
+        renderer.clear();
+
+        // Rotate each cube in the grid
+        for (unsigned int i = 0; i < rotations.size(); i++)
+            scene[i].world = scene[i].world * matrix::makeRotateXYZ(rotations[i].x, rotations[i].y, rotations[i].z);
+
+        // Move the sphere back and forth
+        sphereOffset += sphereStep;
+        scene[48].world = matrix::makeTranslation(sphereOffset, 0.f, -6.f);
+        if (sphereOffset > 6.0f || sphereOffset < -6.0f) {
+            sphereStep *= -1.f;
+            if (++cycle % 2 == 0) {
+                end = std::chrono::high_resolution_clock::now();
+                std::cout << cycle / 2 << " :" << std::chrono::duration<double, std::milli>(end - start).count() << "ms\n";
+                start = std::chrono::high_resolution_clock::now();
+            }
+        }
+
+        if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
+
+        for (auto& m : scene) {
+            pool.enqueue(render5, std::ref(renderer), std::ref(m), std::ref(camera), std::ref(L));
+        }
+        pool.waitForAllTasks();
+        renderer.present();
+    }
+}
+
+void scene3_1_SingleThread() {
+    Renderer renderer;
+    matrix camera;
+    Light L{ vec4(0.f, 1.f, 1.f, 0.f), colour(1.0f, 1.0f, 1.0f), colour(0.1f, 0.1f, 0.1f) };
+    L.omega_i.normalise();
+    bool running = true;
+
+    std::vector<Mesh> scene(40);
+
+    for (unsigned int i = 0; i < 40; i++) {
+        scene[i] = Mesh::makeCube(1.f);
+        scene[i].world = matrix::makeTranslation(0.0f, 0.0f, (-3 * static_cast<float>(i))-5) * makeRandomRotation();
+    }
+
+    float zoffset = 0.8f; // Initial camera Z-offset
+    float step = -0.01f;  // Step size for camera movement
+
+    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end;
+    int cycle = 0;
+
+    // Main rendering loop
+    while (running) {
+        renderer.canvas.checkInput();
+        renderer.clear();
+
+        camera = matrix::makeTranslation(0, 0, -zoffset); // Update camera position
+
+        // Rotate the first two cubes in the scene
+        scene[0].world = scene[0].world * matrix::makeRotateXYZ(0.1f, 0.1f, 0.0f);
+        scene[1].world = scene[1].world * matrix::makeRotateXYZ(0.0f, 0.1f, 0.2f);
+
+        if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
+
+        zoffset += step;
+        if (zoffset < -6.f || zoffset > 0.8f) {
+            step *= -1.f;
+            if (++cycle % 2 == 0) {
+                end = std::chrono::high_resolution_clock::now();
+                std::cout << cycle / 2 << " :" << std::chrono::duration<double, std::milli>(end - start).count() << "ms\n";
+                start = std::chrono::high_resolution_clock::now();
+            }
+        }
+
+        for (auto& m : scene)
+            render5(renderer, m, camera, L);
+        renderer.present();
+    }
+}
+void scene3_2_SingleThread() {
+    Renderer renderer;
+    matrix camera;
+    Light L{ vec4(0.f, 1.f, 1.f, 0.f), colour(1.0f, 1.0f, 1.0f), colour(0.1f, 0.1f, 0.1f) };
+    L.omega_i.normalise();
+    bool running = true;
+
+    std::vector<Mesh> scene(40);
+
+    for (int i = 39; i >= 0; i--) {
+        scene[i] = Mesh::makeCube(1.f);
+        scene[i].world = matrix::makeTranslation(0.0f, 0.0f, (-3 * static_cast<float>(i))-5) * makeRandomRotation();
+    }
+
+    float zoffset = 0.8f; // Initial camera Z-offset
+    float step = -0.01f;  // Step size for camera movement
+
+    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end;
+    int cycle = 0;
+
+    // Main rendering loop
+    while (running) {
+        renderer.canvas.checkInput();
+        renderer.clear();
+
+        camera = matrix::makeTranslation(0, 0, -zoffset); // Update camera position
+
+        // Rotate the first two cubes in the scene
+        scene[0].world = scene[0].world * matrix::makeRotateXYZ(0.1f, 0.1f, 0.0f);
+        scene[1].world = scene[1].world * matrix::makeRotateXYZ(0.0f, 0.1f, 0.2f);
+
+        if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
+
+        zoffset += step;
+        if (zoffset < -6.f || zoffset > 0.8f) {
+            step *= -1.f;
+            if (++cycle % 2 == 0) {
+                end = std::chrono::high_resolution_clock::now();
+                std::cout << cycle / 2 << " :" << std::chrono::duration<double, std::milli>(end - start).count() << "ms\n";
+                start = std::chrono::high_resolution_clock::now();
+            }
+        }
+
+        for (auto& m : scene)
+            render5(renderer, m, camera, L);
+        renderer.present();
+    }
+}
+void scene3_1_MultiThread() {
+    Renderer renderer;
+    matrix camera;
+    Light L{ vec4(0.f, 1.f, 1.f, 0.f), colour(1.0f, 1.0f, 1.0f), colour(0.1f, 0.1f, 0.1f) };
+    L.omega_i.normalise();
+    bool running = true;
+
+    std::vector<Mesh> scene(40);
+
+    for (unsigned int i = 0; i < 40; i++) {
+        scene[i] = Mesh::makeCube(1.f);
+        scene[i].world = matrix::makeTranslation(0.0f, 0.0f, (-3 * static_cast<float>(i)) - 5) * makeRandomRotation();
+    }
+
+    float zoffset = 0.8f; // Initial camera Z-offset
+    float step = -0.01f;  // Step size for camera movement
+
+    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end;
+    int cycle = 0;
+
+    ThreadPool pool;
+
+    while (running) {
+        renderer.canvas.checkInput();
+        renderer.clear();
+
+        camera = matrix::makeTranslation(0, 0, -zoffset);
+        scene[0].world = scene[0].world * matrix::makeRotateXYZ(0.1f, 0.1f, 0.0f);
+        scene[1].world = scene[1].world * matrix::makeRotateXYZ(0.0f, 0.1f, 0.2f);
+
+        if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
+
+        zoffset += step;
+        if (zoffset < -6.f || zoffset > 0.8f) {
+            step *= -1.f;
+            if (++cycle % 2 == 0) {
+                end = std::chrono::high_resolution_clock::now();
+                std::cout << cycle / 2 << " :" << std::chrono::duration<double, std::milli>(end - start).count() << "ms\n";
+                start = std::chrono::high_resolution_clock::now();
+            }
+        }
+
+
+        for (auto& m : scene) {
+            pool.enqueue(render5, std::ref(renderer), std::ref(m), std::ref(camera), std::ref(L));
+        }
+        pool.waitForAllTasks();
+        renderer.present();
+    }
+}
+void scene3_2_MultiThread() {
+    Renderer renderer;
+    matrix camera;
+    Light L{ vec4(0.f, 1.f, 1.f, 0.f), colour(1.0f, 1.0f, 1.0f), colour(0.1f, 0.1f, 0.1f) };
+    L.omega_i.normalise();
+    bool running = true;
+
+    std::vector<Mesh> scene(40);
+
+    for (int i = 39; i >= 0; i--) {
+        scene[i] = Mesh::makeCube(1.f);
+        scene[i].world = matrix::makeTranslation(0.0f, 0.0f, (-3 * static_cast<float>(i)) - 5) * makeRandomRotation();
+    }
+
+    float zoffset = 0.8f; // Initial camera Z-offset
+    float step = -0.01f;  // Step size for camera movement
+
+    auto start = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end;
+    int cycle = 0;
+
+    ThreadPool pool;
+
+    while (running) {
+        renderer.canvas.checkInput();
+        renderer.clear();
+
+        camera = matrix::makeTranslation(0, 0, -zoffset);
+        scene[0].world = scene[0].world * matrix::makeRotateXYZ(0.1f, 0.1f, 0.0f);
+        scene[1].world = scene[1].world * matrix::makeRotateXYZ(0.0f, 0.1f, 0.2f);
+
+        if (renderer.canvas.keyPressed(VK_ESCAPE)) break;
+
+        zoffset += step;
+        if (zoffset < -6.f || zoffset > 0.8f) {
+            step *= -1.f;
+            if (++cycle % 2 == 0) {
+                end = std::chrono::high_resolution_clock::now();
+                std::cout << cycle / 2 << " :" << std::chrono::duration<double, std::milli>(end - start).count() << "ms\n";
+                start = std::chrono::high_resolution_clock::now();
+            }
+        }
+
+
+        for (auto& m : scene) {
+            pool.enqueue(render5, std::ref(renderer), std::ref(m), std::ref(camera), std::ref(L));
+        }
+        pool.waitForAllTasks();
+        renderer.present();
+    }
+}
 // Entry point of the application
 // No input variables
 int main() {
-    // Uncomment the desired scene function to run
+	//All of the scenes are listed below 
+    
     //scene1();
+	//scene1_1();
+	//scene1_2();
+	//scene1_3();
+	//scene1_4();
+	//scene1_5();
+	//scene1_6();
+	//scene1_7();
+	
     //scene2();
-    //sceneTest(); 
-
-    scene1_7();
+	//scene2_4();
+	//scene2_5();
+	//scene2_6();
+	//scene2_7();
+	//scene3_1_SingleThread();
+	//scene3_2_SingleThread();
+	//scene3_1_MultiThread();
+	scene3_2_MultiThread();
 
     return 0;
 }
